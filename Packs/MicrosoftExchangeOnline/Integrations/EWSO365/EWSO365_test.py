@@ -1,5 +1,8 @@
 import base64
 import json
+import unittest
+from unittest.mock import MagicMock, patch
+
 import demistomock as demisto
 
 import pytest
@@ -12,7 +15,8 @@ from freezegun import freeze_time
 from EWSO365 import (ExpandGroup, GetSearchableMailboxes, EWSClient, fetch_emails_as_incidents,
                      add_additional_headers, fetch_last_emails, find_folders,
                      get_expanded_group, get_searchable_mailboxes, handle_html,
-                     handle_transient_files, parse_incident_from_item, parse_item_as_dict, get_item_as_eml)
+                     handle_transient_files, parse_incident_from_item, parse_item_as_dict, get_item_as_eml,
+                     create_message)
 
 with open("test_data/commands_outputs.json") as f:
     COMMAND_OUTPUTS = json.load(f)
@@ -786,3 +790,37 @@ def test_get_item_as_eml(subject, expected_file_name, mocker):
     get_item_as_eml(MockEWSClient(), "item", "account@test.com")
 
     mock_file_result.assert_called_once_with(expected_file_name, expected_data)
+
+
+class TestEmailModule(unittest.TestCase):
+
+    @patch('EWSO365.FileAttachment')
+    @patch('EWSO365.HTMLBody')
+    @patch('EWSO365.Body')
+    @patch('EWSO365.Message')
+    def test_create_message_with_html_body(self, mock_message, mock_body, mock_html_body, mock_file_attachment):
+        """
+        Test create_message function with an HTML body.
+        """
+        # Setup
+        to = ["recipient@example.com"]
+        subject = "Test Subject"
+        html_body = "<p>Test HTML Body</p>"
+        attachments = [{"name": "file.txt", "data": "data", "cid": "12345"}]
+
+        mock_message.return_value = MagicMock()
+        mock_html_body.return_value = MagicMock()
+        mock_file_attachment.return_value = MagicMock()
+
+        # Call the function
+        result = create_message(
+            to, subject, html_body=html_body, attachments=attachments
+        )
+
+        # Assertions
+        mock_html_body.assert_called_once_with(html_body)
+        mock_file_attachment.assert_called_once_with(
+            name="file.txt", content="data", is_inline=True, content_id="12345"
+        )
+        mock_message.assert_called_once()
+        self.assertIsInstance(result, MagicMock)

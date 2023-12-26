@@ -56,6 +56,8 @@ class Client(BaseClient):
             self.refresh_token = credentials[PASSWORD]
         else:
             self.access_token = ''
+            self._refresh_token_with_client_credentials()
+            demisto.debug(f"[test] - {self.access_token}")
 
     def _refresh_token(self):
         """Refreshes Access Token"""
@@ -108,7 +110,7 @@ class Client(BaseClient):
 
         except Exception as e:
             print_debug_msg(str(e))
-            raise
+            raise e
 
     def _handle_403_errors(self, res):
         """
@@ -356,7 +358,7 @@ def parse_dlp_report(report_json) -> CommandResults:
     )
 
 
-def test(client):
+def test(client: Client):
     """ Test Function to test validity of access and refresh tokens"""
     report_json, status_code = client.get_dlp_report('1')
     if status_code in [200, 204]:
